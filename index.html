@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fußball-Darts</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+            flex-direction: column;
+        }
+        .container {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+        }
+        .side {
+            width: 45%;
+            border: 1px solid #000;
+            padding: 10px;
+            position: relative;
+        }
+        .header {
+            font-size: 32px;
+            font-weight: bold;
+        }
+        .sub-header {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .double-field {
+            font-size: 36px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .darts {
+            margin: 10px 0;
+        }
+        .darts div {
+            font-size: 20px;
+        }
+        .last-dart {
+            font-size: 14px;
+            color: #888;
+            margin-top: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+        }
+        .ball-indicator {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: black;
+            top: 10px;
+            left: 10px;
+            display: none;
+        }
+        #player-ball-indicator {
+            display: none;
+        }
+        #bot-ball-indicator {
+            display: none;
+        }
+        #score, #status {
+            font-weight: bold;
+            font-size: 20px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">Fußball-Darts</div>
+    <div class="container">
+        <div class="side" id="player-side">
+            <div class="sub-header">Spieler</div>
+            <div class="double-field" id="player-double">Doppel 1</div>
+            <div class="darts">
+                <div id="player-dart1">Dart 1: -</div>
+                <div id="player-dart2">Dart 2: -</div>
+                <div id="player-dart3">Dart 3: -</div>
+            </div>
+            <div class="last-dart" id="player-last-dart">Letzter Dart: -</div>
+            <div class="buttons">
+                <button onclick="playerHitBull()">Bull getroffen</button>
+                <button onclick="playerMissBull()">Bull verfehlt</button>
+                <br>
+                <button onclick="playerHitDouble()">Doppel getroffen</button>
+                <button onclick="playerMissDouble()">Doppel verfehlt</button>
+            </div>
+            <div class="ball-indicator" id="player-ball-indicator"></div>
+        </div>
+        <div class="side" id="bot-side">
+            <div class="sub-header">Dartbot</div>
+            <div class="double-field" id="bot-double">Doppel 1</div>
+            <div class="darts">
+                <div id="bot-dart1">Dart 1: -</div>
+                <div id="bot-dart2">Dart 2: -</div>
+                <div id="bot-dart3">Dart 3: -</div>
+            </div>
+            <div class="last-dart" id="bot-last-dart">Letzter Dart: -</div>
+            <div class="buttons">
+                <button onclick="botHitBull()">Bull getroffen</button>
+                <button onclick="botMissBull()">Bull verfehlt</button>
+                <br>
+                <button onclick="botHitDouble()">Doppel getroffen</button>
+                <button onclick="botMissDouble()">Doppel verfehlt</button>
+            </div>
+            <div class="ball-indicator" id="bot-ball-indicator"></div>
+        </div>
+    </div>
+    <div id="score">Spieler: Doppel 1, Bot: Doppel 1</div>
+    <div id="status">Status: -</div>
+
+    <script>
+        let playerTurn = true;
+        let playerBall = false;
+        let botBall = false;
+        let playerCurrentDouble = 1;
+        let botCurrentDouble = 1;
+        let playerDartIndex = 0;
+        let botDartIndex = 0;
+        let playerDarts = ["-", "-", "-"];
+        let botDarts = ["-", "-", "-"];
+        let playerLastDart = "-";
+        let botLastDart = "-";
+        let ballIndicatorVisible = false;
+        let botNeedsBull = false; // Flag, ob der Bot auf Bull werfen muss
+
+        function updatePlayerDarts() {
+            document.getElementById('player-dart1').innerText = `Dart 1: ${playerDarts[0]}`;
+            document.getElementById('player-dart2').innerText = `Dart 2: ${playerDarts[1]}`;
+            document.getElementById('player-dart3').innerText = `Dart 3: ${playerDarts[2]}`;
+            document.getElementById('player-last-dart').innerText = `Letzter Dart: ${playerLastDart}`;
+            document.getElementById('player-double').innerText = `Doppel ${playerCurrentDouble}`;
+        }
+
+        function updateBotDarts() {
+            document.getElementById('bot-dart1').innerText = `Dart 1: ${botDarts[0]}`;
+            document.getElementById('bot-dart2').innerText = `Dart 2: ${botDarts[1]}`;
+            document.getElementById('bot-dart3').innerText = `Dart 3: ${botDarts[2]}`;
+            document.getElementById('bot-last-dart').innerText = `Letzter Dart: ${botLastDart}`;
+            document.getElementById('bot-double').innerText = `Doppel ${botCurrentDouble}`;
+        }
+
+        function updateBallIndicators() {
+            document.getElementById('player-ball-indicator').style.display = (playerBall && ballIndicatorVisible) ? 'block' : 'none';
+            document.getElementById('bot-ball-indicator').style.display = (botBall && ballIndicatorVisible) ? 'block' : 'none';
+        }
+
+        function updateScore() {
+            document.getElementById('score').innerText = `Spieler: Doppel ${playerCurrentDouble}, Bot: Doppel ${botCurrentDouble}`;
+        }
+
+        function updateStatus(message) {
+            document.getElementById('status').innerText = `Status: ${message}`;
+        }
+
+        function playerHitBull() {
+            if (playerTurn) {
+                playerBall = true;
+                playerLastDart = 'Bull getroffen';
+                playerDarts[playerDartIndex] = playerLastDart;
+                updatePlayerDarts();
+                updateStatus('Spieler hat den Ball erobert!');
+                ballIndicatorVisible = true;
+                botNeedsBull = true; // Bot muss jetzt auf Bull werfen
+                nextPlayerDart();
+            }
+        }
+
+        function playerMissBull() {
+            if (playerTurn) {
+                playerLastDart = 'Bull verfehlt';
+                playerDarts[playerDartIndex] = playerLastDart;
+                updatePlayerDarts();
+                nextPlayerDart();
+            }
+        }
+
+        function playerHitDouble() {
+            if (playerTurn && playerBall) {
+                playerLastDart = `Doppel ${playerCurrentDouble} getroffen`;
+                playerDarts[playerDartIndex] = playerLastDart;
+                updatePlayerDarts();
+                updateStatus(`Spieler hat Doppel ${playerCurrentDouble} getroffen!`);
+                playerCurrentDouble++;
+                updateScore();
+                if (playerCurrentDouble > 20) {
+                    updateStatus('Spieler hat das Spiel gewonnen!');
+                    return;
+                }
+                nextPlayerDart();
+            }
+        }
+
+        function playerMissDouble() {
+            if (playerTurn && playerBall) {
+                playerLastDart = `Doppel ${playerCurrentDouble} verfehlt`;
+                playerDarts[playerDartIndex] = playerLastDart;
+                updatePlayerDarts();
+                updateStatus(`Spieler hat Doppel ${playerCurrentDouble} verfehlt.`);
+                nextPlayerDart();
+            }
+        }
+
+        function nextPlayerDart() {
+            playerDartIndex++;
+            if (playerDartIndex > 2) {
+                playerDartIndex = 0;
+                playerDarts = ["-", "-", "-"];
+                updatePlayerDarts();
+                playerTurn = false;
+                if (botNeedsBull) {
+                    botTurn(); // Bot muss Bull werfen
+                } else {
+                    botTurn(); // Bot darf auf Doppel werfen
+                }
+                ballIndicatorVisible = false;
+                updateBallIndicators();
+            }
+        }
+
+        function botHitBull() {
+            if (!playerTurn) {
+                botBall = true;
+                botLastDart = 'Bull getroffen';
+                botDarts[botDartIndex] = botLastDart;
+                updateBotDarts();
+                updateStatus('Bot hat den Ball erobert!');
+                ballIndicatorVisible = true;
+                botNeedsBull = false; // Bot braucht jetzt keinen Bull mehr
+                nextBotDart();
+            }
+        }
+
+        function botMissBull() {
+            if (!playerTurn) {
+                botLastDart = 'Bull verfehlt';
+                botDarts[botDartIndex] = botLastDart;
+                updateBotDarts();
+                nextBotDart();
+            }
+        }
+
+        function botHitDouble() {
+            if (!playerTurn && botBall) {
+                botLastDart = `Doppel ${botCurrentDouble} getroffen`;
+                botDarts[botDartIndex] = botLastDart;
+                updateBotDarts();
+                updateStatus(`Bot hat Doppel ${botCurrentDouble} getroffen!`);
+                botCurrentDouble++;
+                updateScore();
+                if (botCurrentDouble > 20) {
+                    updateStatus('Bot hat das Spiel gewonnen!');
+                    return;
+                }
+                nextBotDart();
+            }
+        }
+
+        function botMissDouble() {
+            if (!playerTurn && botBall) {
+                botLastDart = `Doppel ${botCurrentDouble} verfehlt`;
+                botDarts[botDartIndex] = botLastDart;
+                updateBotDarts();
+                nextBotDart();
+            }
+        }
+
+        function nextBotDart() {
+            botDartIndex++;
+            if (botDartIndex > 2) {
+                botDartIndex = 0;
+                botDarts = ["-", "-", "-"];
+                updateBotDarts();
+                playerTurn = true;
+                ballIndicatorVisible = false;
+                updateBallIndicators();
+            }
+        }
+
+        function botTurn() {
+            botDartIndex = 0;
+            setTimeout(() => {
+                for (let i = 0; i < 3; i++) {
+                    setTimeout(() => {
+                        if (botNeedsBull) {
+                            if (hitBull()) {
+                                botHitBull();
+                            } else {
+                                botMissBull();
+                            }
+                        } else {
+                            if (hitDouble(botCurrentDouble)) {
+                                botHitDouble();
+                            } else {
+                                botMissDouble();
+                            }
+                        }
+                        if (i === 2) {
+                            playerTurn = true;
+                            updateBallIndicators();
+                        }
+                    }, i * 1000);
+                }
+            }, 1000);
+        }
+
+        function hitBull() {
+            return Math.random() < 0.33; // 2:1 Chance (Treffen 1 von 3 Versuchen)
+        }
+
+        function hitDouble(doubleNumber) {
+            return Math.random() < 0.33; // 2:1 Chance (Treffen 1 von 3 Versuchen)
+        }
+
+        // Initialize ball indicators based on who starts
+        updateBallIndicators();
+    </script>
+</body>
+</html>
